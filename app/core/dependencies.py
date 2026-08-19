@@ -1,6 +1,6 @@
 from app.core.security import decode_access_token
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import RoleEnum, User
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
@@ -45,3 +45,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     return user
+
+"""
+* means: Accept any number of role arguments and collect them into a tuple.
+"""
+def require_role(*allowed_roles: RoleEnum):
+    def role_checker(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Operation not permitted for role '{current_user.role.value}'")
+        return current_user
+    return role_checker
+
+"""
+401 → Who are you? / Invalid authentication
+403 → I know who you are, but you're not allowed / FORBIDDEN
+"""
