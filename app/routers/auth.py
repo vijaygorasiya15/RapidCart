@@ -1,7 +1,5 @@
-from app.core.dependencies import require_role
 from app.core.security import create_access_token
 from app.db.database import get_db
-from app.models.user import RoleEnum
 from app.schemas.auth import Token
 from app.schemas.user import UserCreate, UserResponse
 from app.services.auth import authenticate_user, register_user
@@ -60,17 +58,3 @@ Second:
 Depends() tells FastAPI:
 "Don't expect me to manually create this object. You create it using this dependency and pass it into my function."
 """
-
-@router.get("/test/buyer-only")
-def buyer_only_route(current_user=Depends(require_role(RoleEnum.BUYER))):
-    return {"message": f"Hello buyer {current_user.email}"}
-
-
-@router.get("/test/seller-only")
-def seller_only_route(current_user=Depends(require_role(RoleEnum.SELLER))):
-    return {"message": f"Hello seller {current_user.email}"}
-
-
-@router.get("/test/admin-only")
-def admin_only_route(current_user=Depends(require_role(RoleEnum.ADMIN))):
-    return {"message": f"Hello admin {current_user.email}"}

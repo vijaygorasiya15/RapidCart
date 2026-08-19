@@ -21,6 +21,6 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default= lambda: datetime.now(timezone.utc))
 
     # back_populates keeps both sides of a relationship connected and synchronized in the ORM.
-    # products = relationship("Product", back_populates="seller")
+    products = relationship("Product", back_populates="seller")
     # orders = relationship("Order", back_populates="buyer")
 

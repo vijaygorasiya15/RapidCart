@@ -1,6 +1,7 @@
+import app.models.product
 import app.models.user
 from app.db.database import Base, engine, get_db
-from app.routers.auth import router
+from app.routers import auth, product
 from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -12,7 +13,8 @@ Base.metadata.create_all(bind=engine)
 Look at all the tables registered in Base.metadata and create them in the database if they don't already exist.
 """
 
-app.include_router(router)
+app.include_router(auth.router)
+app.include_router(product.router)
 
 @app.get("/")
 async def test():
