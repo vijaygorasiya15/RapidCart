@@ -22,5 +22,5 @@ class User(Base):
 
     # back_populates keeps both sides of a relationship connected and synchronized in the ORM.
     products = relationship("Product", back_populates="seller")
-    # orders = relationship("Order", back_populates="buyer")
+    orders = relationship("Order", back_populates="buyer")
 
