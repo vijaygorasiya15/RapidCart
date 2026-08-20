@@ -1,7 +1,7 @@
 from app.core.dependencies import get_current_user, require_role
 from app.db.database import get_db
 from app.models.user import RoleEnum, User
-from app.schemas.order import OrderCreate, OrderResponse
+from app.schemas.order import OrderCreate, OrderResponse, OrderStatusUpdate
 from app.services import order as order_service
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -51,3 +51,23 @@ def get_order(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to view this order")
 
     return order
+
+@router.patch("/{order_id}/status", response_model=OrderResponse)
+def update_order_status(
+    order_id: int,
+    status_update: OrderStatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    order = order_service.get_order_by_id(db, order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+    try:
+        return order_service.update_order_status(
+            db, order, status_update.status, current_user.id, current_user.role.value
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

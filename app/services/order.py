@@ -1,9 +1,55 @@
-from app.models.order import Order
+from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.product import Product
 from app.schemas.order import OrderCreate
 from sqlalchemy.orm import Session, joinedload
 
+ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
+    OrderStatus.PENDING: {OrderStatus.CONFIRMED, OrderStatus.CANCELLED},
+    OrderStatus.CONFIRMED: {OrderStatus.PROCESSING, OrderStatus.CANCELLED},
+    OrderStatus.PROCESSING: {OrderStatus.SHIPPED},
+    OrderStatus.SHIPPED: {OrderStatus.DELIVERED},
+    OrderStatus.DELIVERED: set(),
+    OrderStatus.CANCELLED: set(),
+}
+
+
+def is_valid_transition(current: OrderStatus, new: OrderStatus) -> bool:
+    return new in ALLOWED_TRANSITIONS.get(current, set())
+"""
+Get the value for current. If current does not exist as a key, return an empty set instead.
+set() here is a fallback/default value.
+"""
+
+def update_order_status(
+    db: Session,
+    order: Order,
+    new_status: OrderStatus,
+    current_user_id: int,
+    role: str,
+) -> Order:
+    if role == "admin":
+        pass  # admin can override any transition, including otherwise-illegal ones
+    elif role == "seller":
+        is_seller_of_order = any(item.product.seller_id == current_user_id for item in order.items)
+        if not is_seller_of_order:
+            raise PermissionError("You can only update orders containing your products")
+        if not is_valid_transition(order.status, new_status):
+            raise ValueError(f"Cannot transition from {order.status.value} to {new_status.value}")
+    elif role == "buyer":
+        if order.buyer_id != current_user_id:
+            raise PermissionError("You can only cancel your own orders")
+        if new_status != OrderStatus.CANCELLED:
+            raise PermissionError("Buyers can only cancel orders")
+        if order.status not in {OrderStatus.PENDING, OrderStatus.CONFIRMED}:
+            raise ValueError("Only pending or confirmed orders can be cancelled")
+    else:
+        raise PermissionError("Not authorized to update order status")
+
+    order.status = new_status
+    db.commit()
+    db.refresh(order)
+    return order
 
 def create_order(db: Session, order_in: OrderCreate, buyer_id: int) -> Order:
     if not order_in.items:
