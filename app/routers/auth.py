@@ -1,8 +1,14 @@
 from app.core.security import create_access_token
 from app.db.database import get_db
-from app.schemas.auth import Token
+from app.schemas.auth import RefreshRequest, Token
 from app.schemas.user import UserCreate, UserResponse
-from app.services.auth import authenticate_user, register_user
+from app.services.auth import (
+    authenticate_user,
+    create_refresh_token_for_user,
+    register_user,
+    revoke_refresh_token,
+    verify_refresh_token,
+)
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -38,8 +44,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-    return Token(access_token=access_token)
-
+    refresh_token = create_refresh_token_for_user(db, user.id)
+    return Token(access_token=access_token, refresh_token=refresh_token)
 """
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -58,3 +64,28 @@ Second:
 Depends() tells FastAPI:
 "Don't expect me to manually create this object. You create it using this dependency and pass it into my function."
 """
+
+@router.post("/refresh", response_model=Token)
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+    db_token = verify_refresh_token(db, payload.refresh_token)
+    if not db_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    user = db_token.user
+    revoke_refresh_token(db, db_token)  # rotation: old token dies here
+
+    new_access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    new_refresh_token = create_refresh_token_for_user(db, user.id)
+
+    return Token(access_token=new_access_token, refresh_token=new_refresh_token)
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(payload: RefreshRequest, db: Session = Depends(get_db)):
+    db_token = verify_refresh_token(db, payload.refresh_token)
+    if db_token:
+        revoke_refresh_token(db, db_token)
+    return None
