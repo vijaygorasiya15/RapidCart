@@ -53,7 +53,7 @@ def get_order(
     return order
 
 @router.patch("/{order_id}/status", response_model=OrderResponse)
-def update_order_status(
+async def update_order_status(
     order_id: int,
     status_update: OrderStatusUpdate,
     db: Session = Depends(get_db),
@@ -64,7 +64,7 @@ def update_order_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
 
     try:
-        return order_service.update_order_status(
+        return await order_service.update_order_status(
             db, order, status_update.status, current_user.id, current_user.role.value
         )
     except PermissionError as e:

@@ -2,6 +2,7 @@ from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.product import Product
 from app.schemas.order import OrderCreate
+from app.services.websocket import manager
 from sqlalchemy.orm import Session, joinedload
 
 ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
@@ -21,7 +22,7 @@ Get the value for current. If current does not exist as a key, return an empty s
 set() here is a fallback/default value.
 """
 
-def update_order_status(
+async def update_order_status(
     db: Session,
     order: Order,
     new_status: OrderStatus,
@@ -49,6 +50,16 @@ def update_order_status(
     order.status = new_status
     db.commit()
     db.refresh(order)
+
+    await manager.send_to_user(
+        order.buyer_id,
+        {
+            "event": "order_status_updated",
+            "order_id": order.id,
+            "status": order.status.value,
+        },
+    )
+
     return order
 
 def create_order(db: Session, order_in: OrderCreate, buyer_id: int) -> Order:
