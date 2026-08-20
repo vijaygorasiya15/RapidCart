@@ -1,6 +1,7 @@
 import app.models.order
 import app.models.order_item
 import app.models.product
+import app.models.refresh_token
 import app.models.user
 from app.db.database import Base, engine, get_db
 from app.routers import auth, order, product, websocket
