@@ -1,7 +1,8 @@
 from app.core.security import decode_access_token
 from app.db.database import get_db
 from app.models.user import RoleEnum, User
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocket, WebSocketException, status
+from fastapi import status as ws_status
 from fastapi.security import OAuth2PasswordBearer
 
 """
@@ -60,3 +61,23 @@ def require_role(*allowed_roles: RoleEnum):
 401 → Who are you? / Invalid authentication
 403 → I know who you are, but you're not allowed / FORBIDDEN
 """
+
+
+async def get_current_user_ws(websocket: WebSocket, db: Session) -> User:
+    token = websocket.query_params.get("token")
+    if not token:
+        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+
+    payload = decode_access_token(token)
+    if payload is None:
+        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None:
+        raise WebSocketException(code=ws_status.WS_1008_POLICY_VIOLATION, reason="User not found")
+
+    return user

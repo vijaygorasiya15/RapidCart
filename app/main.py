@@ -3,7 +3,7 @@ import app.models.order_item
 import app.models.product
 import app.models.user
 from app.db.database import Base, engine, get_db
-from app.routers import auth, order, product
+from app.routers import auth, order, product, websocket
 from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ Look at all the tables registered in Base.metadata and create them in the databa
 app.include_router(auth.router)
 app.include_router(product.router)
 app.include_router(order.router)
+app.include_router(websocket.router)
 
 @app.get("/")
 async def test():

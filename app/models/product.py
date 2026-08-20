@@ -23,7 +23,6 @@ class Product(Base):
 
     seller = relationship("User", back_populates="products")
 
-"""
-seller = relationship("User", back_populates="products") — this is the other half of the products = relationship(...) we already have on User.
-Now product.seller and user.products both work in Python.
-"""
+
+# seller = relationship("User", back_populates="products") — this is the other half of the products = relationship(...) we already have on User.
+# Now product.seller and user.products both work in Python.
